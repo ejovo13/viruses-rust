@@ -87,10 +87,8 @@ mod vdb_download {
 
     }
 
+    // Receive and trim user input
     fn get_user_input() -> String {
-
-        // Greet the user
-        println!("Please enter the pdbid of the virus you would like to download");
 
         let mut user_input = String::new();
         stdin().read_line(&mut user_input).expect("Unable to read line");
@@ -108,7 +106,6 @@ mod vdb_download {
                 if c.is_alphanumeric() {
                     continue;
                 } else {
-                    println!("Character: '{}' is not alphanumeric", c);
                     return Err(String::from("Pdbid must only contain alphanumeric character"));
                 }
             }
@@ -116,10 +113,37 @@ mod vdb_download {
             return Ok(pdbid);
 
         } else {
-
-            println!("Pdbid must be four characters");
             return Err(String::from("Pdbid must be four characters"));
         }
+    }
+
+    // Get the user input and validate it. Returns a valid 4-character alphanumeric string
+    fn get_valid_input() -> String {
+
+        // Greet the user
+        println!("Please enter the pdbid of the virus you would like to download");
+
+        // Get input
+        let mut valid_input: String;
+
+        loop {
+
+            // If the input is valid, assign it to valid_input and return. Else, Restart the loop.
+            match validate_pdbid_input(get_user_input()) {
+                Ok(input) => {
+                    valid_input = input;
+                    break;
+                }
+                Err(msg) => {
+                    println!("Error: {}", msg);
+                    println!("Please enter a 4 character alphanumeric pdbid. Examples are 2ms2 or 1a34");
+                    continue;
+                }
+            }
+        }
+
+        valid_input
+
     }
 
     async fn request_search(pdbid: &String) -> Result<String, reqwest::Error> {
