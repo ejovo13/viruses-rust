@@ -7,7 +7,7 @@ use vdb_download as vdb;
 #[tokio::main]
 async fn main() -> Result<(), ()> {
 
-    vdb::do_everything();
+    vdb::do_everything().await;
 
     Ok(())
 }
@@ -20,7 +20,7 @@ mod vdb_download {
 
         // Get a valid pdbid
         let pdbid = get::valid_pdbid().await;
-        web::download(pdbid);
+        web::download(pdbid).await;
 
     }
 
@@ -117,6 +117,7 @@ mod vdb_download {
             }
         }
 
+        // Validate that the pased html is the page of an existing virus.
         pub fn viper_request(html: String) -> Result<(), String> {
 
             let document = Html::parse_document(html.as_str());
@@ -151,24 +152,25 @@ mod vdb_download {
 
 
         #[derive(Debug)]
-        enum DownloadError {
+        pub enum DownloadError {
 
             Reqwest(reqwest::Error),
             Io(std::io::Error),
-            // File(std::fs::Error),
+            ViperDB(String),
 
         }
 
         impl fmt::Display for DownloadError {
 
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                match *self {
-                    DownloadError::Reqwest(e) => write!(f, format!("{}", e)),
-                    DownloadError::Io(e) => write!(f, format!("{}", e)),
+
+                match &*self {
+                    DownloadError::Reqwest(e) => write!(f, "Reqwest::Error - {}", e),
+                    DownloadError::Io(e) => write!(f, "Io::Error - {}", e),
+                    DownloadError::ViperDB(s) => write!(f, "ViperDB::Error - {}", s),
                     // DownlaodError::File(e) => write!(f, format!("{}", e)),
                 }
             }
-
         }
 
         impl Error for DownloadError {
@@ -187,6 +189,12 @@ mod vdb_download {
             }
         }
 
+        impl From<String> for DownloadError {
+            fn from(err: String) -> DownloadError {
+                DownloadError::ViperDB(err)
+            }
+        }
+
         pub async fn request_search(pdbid: &String) -> Result<String> {
 
             println!("Requestiong pdbid: {} from the ViperDB", pdbid);
@@ -195,13 +203,14 @@ mod vdb_download {
 
                 Ok(html) => html,
                 Err(e) => {
-                    return Err(format!("Reqwest error: {}", e));
+                    return Err(e);
                 }
 
             };
 
             match super::validate::viper_request(html) {
-
+                Ok(()) => Ok(pdbid.to_string()),
+                Err(s) => Err(DownloadError::ViperDB(s)),
             }
 
 
