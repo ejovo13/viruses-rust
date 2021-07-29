@@ -140,22 +140,46 @@ mod vdb_download {
     //     origin: String,
     // }
 
-    async fn request_search(pdbid: &String) -> Result<String, reqwest::Error> {
-
-
+    async fn request_search(pdbid: &String) -> Result<String, String> {
 
         println!("Requestiong pdbid: {} from the ViperDB", pdbid);
 
-        let response = reqwest::get(format!("http://viperdb.scripps.edu/SearchVirus.php?search={}&option=VDB", pdbid)).await?;
-        // let search_json = response.json::<Ip>().await?;
+        let html = match check_viperdb(pdbid).await {
 
-        let html = response.text().await?;
+            Ok(html) => html,
+            Err(e) => {
+                return Err(format!("Reqwest error: {}", e));
+            }
+
+        };
 
         let document = Html::parse_document(html.as_str());
         let h2_selector = Selector::parse("div h2").unwrap();
         let h2_selection = document.select(&h2_selector);
 
-        println!("Number of elements under 'div h2' = {}", h2_selection.count());
+        match h2_selection.count() {
+            0 => {
+                return Ok(String::from(pdbid));
+            }
+            1 => {
+                return Err(String::from("No pdbid found (1 div h2)"));
+            }
+            _ => {
+                return Err(String::from("Count of selector 'div h2' is neither 1 nor 0"));
+            }
+        }
+
+    async fn check_viperdb(pdbid: &String) -> Result<String, reqwest::Error> {
+
+        let response = reqwest::get(format!("http://viperdb.scripps.edu/SearchVirus.php?search={}&option=VDB", pdbid)).await?;
+        Ok(response.text().await?)
+
+    }
+
+
+
+
+
 
         Ok(String::from("Success"))
 
