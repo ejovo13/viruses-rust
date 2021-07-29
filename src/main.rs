@@ -59,17 +59,9 @@ mod vdb_download {
     pub async fn download() -> Result<(), ()> {
 
         // Get a valid pdbid
-        let pdbid = get_valid_input();
-
-        // Check to see if the pdbid is registered on viperDB
-        match request_search(&pdbid).await {
-            Ok(_) => println!("Success"),
-            Err(e) => println!("Failure: {}", e)
-        }
+        let pdbid = get_valid_pdbid().await;
 
         println!("Downloading pdb {}", pdbid);
-
-
 
 
         Ok(())
@@ -168,6 +160,7 @@ mod vdb_download {
                 return Err(String::from("Count of selector 'div h2' is neither 1 nor 0"));
             }
         }
+    }
 
     async fn check_viperdb(pdbid: &String) -> Result<String, reqwest::Error> {
 
@@ -176,22 +169,26 @@ mod vdb_download {
 
     }
 
-
-
-
-
-
-        Ok(String::from("Success"))
-
-    }
-
     // This function gets a valid pdbid from the user that appears on the viperDB and returns a 4-character String
     async fn get_valid_pdbid() -> String {
 
+        let valid_pdbid: String;
 
+        loop {
 
+            match request_search(&get_valid_input()).await {
+                Ok(existing_pdbid) => {
+                    valid_pdbid = existing_pdbid;
+                    break;
+                }
+                Err(msg) => {
+                    println!("Error: {}", msg);
+                    continue;
+                }
+            }
+        }
 
-        String::from("Default")
+        valid_pdbid
     }
 
 
