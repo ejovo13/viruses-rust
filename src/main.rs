@@ -53,30 +53,19 @@ mod vdb_download {
 
     use std::io::{stdin};
     use reqwest::{Client, StatusCode};
+    use scraper::{Html, Selector};
+    // use serde::Deserialize;
 
     pub async fn download() -> Result<(), ()> {
 
-        let pdbid: String;
-
-        loop {
-            // If the input is not valid, loop around again.
-            match validate_pdbid_input(get_user_input()) {
-                Ok(validated_input) => {
-                    pdbid = validated_input;
-                    break;
-                }
-                Err(_) => {
-                    continue;
-                }
-            }
-        };
+        // Get a valid pdbid
+        let pdbid = get_valid_input();
 
         // Check to see if the pdbid is registered on viperDB
         match request_search(&pdbid).await {
             Ok(_) => println!("Success"),
-            Err(_) => println!("Faulure")
+            Err(e) => println!("Failure: {}", e)
         }
-
 
         println!("Downloading pdb {}", pdbid);
 
@@ -146,19 +135,39 @@ mod vdb_download {
 
     }
 
+    // #[derive(Deserialize)]
+    // struct Ip {
+    //     origin: String,
+    // }
+
     async fn request_search(pdbid: &String) -> Result<String, reqwest::Error> {
+
+
 
         println!("Requestiong pdbid: {} from the ViperDB", pdbid);
 
         let response = reqwest::get(format!("http://viperdb.scripps.edu/SearchVirus.php?search={}&option=VDB", pdbid)).await?;
+        // let search_json = response.json::<Ip>().await?;
 
-        match response.status() {
-            StatusCode::OK => println!("success!"),
-            s => println!("Received response status: {:?}", s),
-        };
+        let html = response.text().await?;
+
+        let document = Html::parse_document(html.as_str());
+        let h2_selector = Selector::parse("div h2").unwrap();
+        let h2_selection = document.select(&h2_selector);
+
+        println!("Number of elements under 'div h2' = {}", h2_selection.count());
 
         Ok(String::from("Success"))
 
+    }
+
+    // This function gets a valid pdbid from the user that appears on the viperDB and returns a 4-character String
+    async fn get_valid_pdbid() -> String {
+
+
+
+
+        String::from("Default")
     }
 
 
