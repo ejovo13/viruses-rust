@@ -141,12 +141,53 @@ mod vdb_download {
     mod web {
     // A module to access the web to download pdbs.
 
+        use std::fmt;
         use tempfile::Builder;
         use std::fs::File;
         use std::io::copy;
         use std::error::Error;
 
-        pub async fn request_search(pdbid: &String) -> Result<String, String> {
+        type Result<T> = std::result::Result<T, DownloadError>;
+
+
+        #[derive(Debug)]
+        enum DownloadError {
+
+            Reqwest(reqwest::Error),
+            Io(std::io::Error),
+            // File(std::fs::Error),
+
+        }
+
+        impl fmt::Display for DownloadError {
+
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                match *self {
+                    DownloadError::Reqwest(e) => write!(f, format!("{}", e)),
+                    DownloadError::Io(e) => write!(f, format!("{}", e)),
+                    // DownlaodError::File(e) => write!(f, format!("{}", e)),
+                }
+            }
+
+        }
+
+        impl Error for DownloadError {
+
+        }
+
+        impl From<std::io::Error> for DownloadError {
+            fn from(err: std::io::Error) -> DownloadError {
+                DownloadError::Io(err)
+            }
+        }
+
+        impl From<reqwest::Error> for DownloadError {
+            fn from(err: reqwest::Error) -> DownloadError {
+                DownloadError::Reqwest(err)
+            }
+        }
+
+        pub async fn request_search(pdbid: &String) -> Result<String> {
 
             println!("Requestiong pdbid: {} from the ViperDB", pdbid);
 
@@ -166,16 +207,14 @@ mod vdb_download {
 
         }
 
-        async fn check_viperdb(pdbid: &String) -> Result<String, reqwest::Error> {
+        async fn check_viperdb(pdbid: &String) -> Result<String> {
 
             let response = reqwest::get(format!("http://viperdb.scripps.edu/SearchVirus.php?search={}&option=VDB", pdbid)).await?;
             Ok(response.text().await?)
 
         }
 
-
-
-        pub async fn download(pdbid: String) -> Result<(), Box<Error>> {
+        pub async fn download(pdbid: String) -> Result<()> {
 
             println!("Downloading pdb {}", pdbid);
 
@@ -196,7 +235,7 @@ mod vdb_download {
                 println!("file to download {}", fname);
                 let fname = tmp_dir.path().join(fname);
                 println!("will be located under: '{:?}'", fname);
-                File::create(fname).unwrap();
+                File::create(fname).unwrap()
             };
             let content = response.text().await.expect("Oh no");
             copy(&mut content.as_bytes(), &mut dest)?;
