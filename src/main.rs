@@ -1,48 +1,13 @@
 extern crate async_std;
 
-use error_chain::error_chain;
-use std::io::copy;
-use std::fs::File;
-use tempfile::Builder;
+// use error_chain::error_chain;
 use vdb_download as vdb;
 
-error_chain! {
-    foreign_links {
-        Io(std::io::Error);
-        HttpRequest(reqwest::Error);
-
-    }
-}
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), ()> {
 
-    match vdb::download().await {
-        Ok(_) => println!("Download succesful!"),
-        Err(string) => println!("{:?}", string),
-    }
-
-
-
-    // let tmp_dir = Builder::new().prefix("tmp").tempdir()?;
-    // let target = "https://www.rust-lang.org/logos/rust-logo-512x512.png";
-    // let response = reqwest::get(target).await?;
-
-    // let mut dest = {
-    //     let fname = response
-    //         .url()
-    //         .path_segments()
-    //         .and_then(|segments| segments.last())
-    //         .and_then(|name| if name.is_empty() { None } else { Some(name) })
-    //         .unwrap_or("tmp.bin");
-
-    //     println!("file to download {}", fname);
-    //     let fname = tmp_dir.path().join(fname);
-    //     println!("will be located under: '{:?}'", fname);
-    //     File::create(fname)?
-    // };
-    // let content = response.text().await?;
-    // copy(&mut content.as_bytes(), &mut dest)?;
+    vdb::do_everything();
 
     Ok(())
 }
@@ -51,145 +16,204 @@ mod vdb_download {
 
     // This module contains all the functionality to download vdbs based on user input
 
-    use std::io::{stdin};
-    use reqwest::{Client, StatusCode};
-    use scraper::{Html, Selector};
-    // use serde::Deserialize;
-
-    pub async fn download() -> Result<(), ()> {
+    pub async fn do_everything() {
 
         // Get a valid pdbid
-        let pdbid = get_valid_pdbid().await;
-
-        println!("Downloading pdb {}", pdbid);
-
-
-        Ok(())
+        let pdbid = get::valid_pdbid().await;
+        web::download(pdbid);
 
     }
 
-    // Receive and trim user input
-    fn get_user_input() -> String {
 
-        let mut user_input = String::new();
-        stdin().read_line(&mut user_input).expect("Unable to read line");
+    mod get {
+    // A module to get different levels of user input
 
-        String::from(user_input.trim())
-    }
+        use std::io::{stdin};
 
-    fn validate_pdbid_input(pdbid: String) -> Result<String, String> {
+        // Receive and trim user input
+        fn user_input() -> String {
 
-        // println!("Validing user input: {}", pdbid);
+            let mut user_input = String::new();
+            stdin().read_line(&mut user_input).expect("Unable to read line");
 
-        if pdbid.chars().count() == 4 {
+            String::from(user_input.trim())
+        }
 
-            for c in pdbid.chars() {
-                if c.is_alphanumeric() {
-                    continue;
-                } else {
-                    return Err(String::from("Pdbid must only contain alphanumeric character"));
+            // Get the user input and validate it. Returns a valid 4-character alphanumeric string
+        fn valid_input() -> String {
+
+            // Greet the user
+            println!("Please enter the pdbid of the virus you would like to download");
+
+            // Get input
+            let valid_input: String;
+
+            loop {
+
+                // If the input is valid, assign it to valid_input and return. Else, Restart the loop.
+                match super::validate::pdbid_input(user_input()) {
+                    Ok(input) => {
+                        valid_input = input;
+                        break;
+                    }
+                    Err(msg) => {
+                        println!("Error: {}", msg);
+                        println!("Please enter a 4 character alphanumeric pdbid. Examples are 2ms2 or 1a34");
+                        continue;
+                    }
                 }
             }
 
-            return Ok(pdbid);
+            valid_input
 
-        } else {
-            return Err(String::from("Pdbid must be four characters"));
+        }
+
+        // This function gets a valid pdbid from the user that appears on the viperDB and returns a 4-character String
+        pub async fn valid_pdbid() -> String {
+
+            let valid_pdbid: String;
+
+            loop {
+
+                match super::web::request_search(&valid_input()).await {
+                    Ok(existing_pdbid) => {
+                        valid_pdbid = existing_pdbid;
+                        break;
+                    }
+                    Err(msg) => {
+                        println!("Error: {}", msg);
+                        continue;
+                    }
+                }
+            }
+
+            valid_pdbid
         }
     }
 
-    // Get the user input and validate it. Returns a valid 4-character alphanumeric string
-    fn get_valid_input() -> String {
+    mod validate {
+    // A module to validate user input
 
-        // Greet the user
-        println!("Please enter the pdbid of the virus you would like to download");
+        use scraper::{Html, Selector};
 
-        // Get input
-        let mut valid_input: String;
+        pub fn pdbid_input(pdbid: String) -> Result<String, String> {
 
-        loop {
+            // println!("Validing user input: {}", pdbid);
 
-            // If the input is valid, assign it to valid_input and return. Else, Restart the loop.
-            match validate_pdbid_input(get_user_input()) {
-                Ok(input) => {
-                    valid_input = input;
-                    break;
+            if pdbid.chars().count() == 4 {
+
+                for c in pdbid.chars() {
+                    if c.is_alphanumeric() {
+                        continue;
+                    } else {
+                        return Err(String::from("Pdbid must only contain alphanumeric character"));
+                    }
                 }
-                Err(msg) => {
-                    println!("Error: {}", msg);
-                    println!("Please enter a 4 character alphanumeric pdbid. Examples are 2ms2 or 1a34");
-                    continue;
-                }
+
+                return Ok(pdbid);
+
+            } else {
+                return Err(String::from("Pdbid must be four characters"));
             }
         }
 
-        valid_input
+        pub fn viper_request(html: String) -> Result<(), String> {
 
-    }
+            let document = Html::parse_document(html.as_str());
+            let h2_selector = Selector::parse("div h2").unwrap();
+            let h2_selection = document.select(&h2_selector);
 
-    // #[derive(Deserialize)]
-    // struct Ip {
-    //     origin: String,
-    // }
-
-    async fn request_search(pdbid: &String) -> Result<String, String> {
-
-        println!("Requestiong pdbid: {} from the ViperDB", pdbid);
-
-        let html = match check_viperdb(pdbid).await {
-
-            Ok(html) => html,
-            Err(e) => {
-                return Err(format!("Reqwest error: {}", e));
-            }
-
-        };
-
-        let document = Html::parse_document(html.as_str());
-        let h2_selector = Selector::parse("div h2").unwrap();
-        let h2_selection = document.select(&h2_selector);
-
-        match h2_selection.count() {
-            0 => {
-                return Ok(String::from(pdbid));
-            }
-            1 => {
-                return Err(String::from("No pdbid found (1 div h2)"));
-            }
-            _ => {
-                return Err(String::from("Count of selector 'div h2' is neither 1 nor 0"));
-            }
-        }
-    }
-
-    async fn check_viperdb(pdbid: &String) -> Result<String, reqwest::Error> {
-
-        let response = reqwest::get(format!("http://viperdb.scripps.edu/SearchVirus.php?search={}&option=VDB", pdbid)).await?;
-        Ok(response.text().await?)
-
-    }
-
-    // This function gets a valid pdbid from the user that appears on the viperDB and returns a 4-character String
-    async fn get_valid_pdbid() -> String {
-
-        let valid_pdbid: String;
-
-        loop {
-
-            match request_search(&get_valid_input()).await {
-                Ok(existing_pdbid) => {
-                    valid_pdbid = existing_pdbid;
-                    break;
+            match h2_selection.count() {
+                0 => {
+                    return Ok(());
                 }
-                Err(msg) => {
-                    println!("Error: {}", msg);
-                    continue;
+                1 => {
+                    return Err(String::from("No pdbid found (1 div h2)"));
+                }
+                _ => {
+                    return Err(String::from("Count of selector 'div h2' is neither 1 nor 0"));
                 }
             }
         }
 
-        valid_pdbid
     }
+
+    mod web {
+    // A module to access the web to download pdbs.
+
+        use tempfile::Builder;
+        use std::fs::File;
+        use std::io::copy;
+        use std::error::Error;
+
+        pub async fn request_search(pdbid: &String) -> Result<String, String> {
+
+            println!("Requestiong pdbid: {} from the ViperDB", pdbid);
+
+            let html = match check_viperdb(pdbid).await {
+
+                Ok(html) => html,
+                Err(e) => {
+                    return Err(format!("Reqwest error: {}", e));
+                }
+
+            };
+
+            match super::validate::viper_request(html) {
+
+            }
+
+
+        }
+
+        async fn check_viperdb(pdbid: &String) -> Result<String, reqwest::Error> {
+
+            let response = reqwest::get(format!("http://viperdb.scripps.edu/SearchVirus.php?search={}&option=VDB", pdbid)).await?;
+            Ok(response.text().await?)
+
+        }
+
+
+
+        pub async fn download(pdbid: String) -> Result<(), Box<Error>> {
+
+            println!("Downloading pdb {}", pdbid);
+
+            let pdb_download_link = String::from(format!("http://viperdb.scripps.edu/resources/VDB/{}.vdb.gz)", pdbid));
+
+            let tmp_dir = Builder::new().prefix(&pdbid).tempdir().unwrap();
+            let target = pdb_download_link;
+            let response = reqwest::get(target).await.unwrap();
+
+            let mut dest = {
+                let fname = response
+                    .url()
+                    .path_segments()
+                    .and_then(|segments| segments.last())
+                    .and_then(|name| if name.is_empty() { None } else { Some(name) })
+                    .unwrap_or("tmp.bin");
+
+                println!("file to download {}", fname);
+                let fname = tmp_dir.path().join(fname);
+                println!("will be located under: '{:?}'", fname);
+                File::create(fname).unwrap();
+            };
+            let content = response.text().await.expect("Oh no");
+            copy(&mut content.as_bytes(), &mut dest)?;
+
+
+            Ok(())
+
+        }
+
+
+    }
+
+
+
+
+
+
 
 
 
