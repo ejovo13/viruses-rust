@@ -20,8 +20,10 @@ mod vdb_download {
 
         // Get a valid pdbid
         let pdbid = get::valid_pdbid().await;
-        web::download(pdbid).await;
-
+        match web::download(&pdbid).await {
+            Ok(_) => {}
+            Err(e) => println!("Error: {}", e),
+        }
     }
 
 
@@ -145,8 +147,15 @@ mod vdb_download {
         use std::fmt;
         use tempfile::Builder;
         use std::fs::File;
+        use std::fs;
         use std::io::copy;
+        use std::io;
+        use std::io::prelude::*;
         use std::error::Error;
+        use std::path::PathBuf;
+        use flate2::read::GzDecoder;
+        use reqwest;
+        use libflate::gzip::Decoder;
 
         type Result<T> = std::result::Result<T, DownloadError>;
 
@@ -157,7 +166,7 @@ mod vdb_download {
             Reqwest(reqwest::Error),
             Io(std::io::Error),
             ViperDB(String),
-
+            File(String),
         }
 
         impl fmt::Display for DownloadError {
@@ -168,6 +177,7 @@ mod vdb_download {
                     DownloadError::Reqwest(e) => write!(f, "Reqwest::Error - {}", e),
                     DownloadError::Io(e) => write!(f, "Io::Error - {}", e),
                     DownloadError::ViperDB(s) => write!(f, "ViperDB::Error - {}", s),
+                    DownloadError::File(s) => write!(f, "File::Error - {}", s),
                     // DownlaodError::File(e) => write!(f, format!("{}", e)),
                 }
             }
@@ -223,32 +233,34 @@ mod vdb_download {
 
         }
 
-        pub async fn download(pdbid: String) -> Result<()> {
+        pub async fn download(pdbid: &String) -> Result<()> {
 
             println!("Downloading pdb {}", pdbid);
 
-            let pdb_download_link = String::from(format!("http://viperdb.scripps.edu/resources/VDB/{}.vdb.gz)", pdbid));
+            let pdb_download_link = String::from(format!("http://viperdb.scripps.edu/resources/VDB/{}.vdb.gz", pdbid));
+            let response = reqwest::get(pdb_download_link).await?;
+            let bytes = response.bytes().await?;
 
-            let tmp_dir = Builder::new().prefix(&pdbid).tempdir().unwrap();
-            let target = pdb_download_link;
-            let response = reqwest::get(target).await.unwrap();
+            let download_folder = format!("/home/ejovo/Downloads/pdbs/{}", pdbid);
+            let download_path = String::clone(&download_folder) + format!("/{}.vdb.gz", pdbid).as_str();
+            let decompressed_vdb = download_path.as_str().replace(".gz", "");
 
-            let mut dest = {
-                let fname = response
-                    .url()
-                    .path_segments()
-                    .and_then(|segments| segments.last())
-                    .and_then(|name| if name.is_empty() { None } else { Some(name) })
-                    .unwrap_or("tmp.bin");
+            println!("Download folder: {}", download_folder);
+            println!("Download_path: {}", download_path);
 
-                println!("file to download {}", fname);
-                let fname = tmp_dir.path().join(fname);
-                println!("will be located under: '{:?}'", fname);
-                File::create(fname).unwrap()
-            };
-            let content = response.text().await.expect("Oh no");
-            copy(&mut content.as_bytes(), &mut dest)?;
+            fs::create_dir_all(&download_folder)?;
 
+            println!("Created directories");
+
+            let mut gz_file = File::create(&download_path)?;
+
+            copy(&mut bytes.as_ref(), &mut gz_file)?;
+
+            let mut decompressed_vdb = File::create(&decompressed_vdb)?;
+            let gz_file = File::open(&download_path)?;
+
+            let mut decoder = Decoder::new(gz_file).unwrap();
+            copy(&mut decoder, &mut decompressed_vdb)?;
 
             Ok(())
 
