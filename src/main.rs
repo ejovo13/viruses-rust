@@ -6,11 +6,48 @@ use vdb_download as vdb;
 
 #[tokio::main]
 async fn main() -> Result<(), ()> {
-
+    cli::start();
     vdb::do_everything().await;
 
     Ok(())
 }
+
+mod cli {
+
+    use std::env::consts;
+
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    static mut OS: String = String::new();
+
+
+    // Greet and get OS information
+    pub fn start() {
+
+        set_os();
+        greet();
+        unsafe {
+            println!("Running on OS: {}", OS.as_str());
+        }
+    }
+
+    fn set_os() {
+        unsafe {
+            OS.push_str(consts::OS);
+        }
+    }
+
+
+    fn greet() {
+
+        println!("Welcome to the command line interface to download viper database files from the internet");
+        println!("Currently running vesion {}", VERSION);
+
+    }
+}
+
+
+
+
 
 mod vdb_download {
 
@@ -31,6 +68,7 @@ mod vdb_download {
     // A module to get different levels of user input
 
         use std::io::{stdin};
+        use super::web::DownloadError;
 
         // Receive and trim user input
         fn user_input() -> String {
@@ -83,7 +121,15 @@ mod vdb_download {
                         break;
                     }
                     Err(msg) => {
-                        println!("Error: {}", msg);
+
+                        match msg {
+
+                            DownloadError::Reqwest(e) => println!("Error with reqwest: {}", e),
+                            DownloadError::Io(e) => println!("Error with Io: {}", e),
+                            DownloadError::ViperDB(e) => println!("error with viperDB: {}", e),
+
+                        }
+
                         continue;
                     }
                 }
@@ -224,7 +270,9 @@ mod vdb_download {
 
         async fn check_viperdb(pdbid: &String) -> Result<String> {
 
+            println!("Entering 'check_viperd'");
             let response = reqwest::get(format!("http://viperdb.scripps.edu/SearchVirus.php?search={}&option=VDB", pdbid)).await?;
+            println!("Running reqwest");
             Ok(response.text().await?)
 
         }
@@ -258,19 +306,11 @@ mod vdb_download {
             let mut decoder = Decoder::new(gz_file).unwrap();
             copy(&mut decoder, &mut decompressed_vdb)?;
 
+            // Delete the compressed file version
+
+
             Ok(())
 
         }
-
-
     }
-
-
-
-
-
-
-
-
-
 }
