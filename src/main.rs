@@ -145,15 +145,11 @@ mod vdb_download {
     // A module to access the web to download pdbs.
 
         use std::fmt;
-        use tempfile::Builder;
+        // use tempfile::Builder;
         use std::fs::File;
         use std::fs;
         use std::io::copy;
-        use std::io;
-        use std::io::prelude::*;
         use std::error::Error;
-        use std::path::PathBuf;
-        use flate2::read::GzDecoder;
         use reqwest;
         use libflate::gzip::Decoder;
 
@@ -166,7 +162,7 @@ mod vdb_download {
             Reqwest(reqwest::Error),
             Io(std::io::Error),
             ViperDB(String),
-            File(String),
+            // File(String),
         }
 
         impl fmt::Display for DownloadError {
@@ -177,7 +173,7 @@ mod vdb_download {
                     DownloadError::Reqwest(e) => write!(f, "Reqwest::Error - {}", e),
                     DownloadError::Io(e) => write!(f, "Io::Error - {}", e),
                     DownloadError::ViperDB(s) => write!(f, "ViperDB::Error - {}", s),
-                    DownloadError::File(s) => write!(f, "File::Error - {}", s),
+                    // DownloadError::File(s) => write!(f, "File::Error - {}", s),
                     // DownlaodError::File(e) => write!(f, format!("{}", e)),
                 }
             }
