@@ -17,7 +17,7 @@ pub async fn do_everything() {
 //  Check if the file is already downloaded
 //  Store default download directory
 //  Serialize data
-//
+//  Delete the compressed version of the file
 
 
 mod get {
