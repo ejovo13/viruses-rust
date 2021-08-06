@@ -18,7 +18,9 @@ async fn main() -> Result<(), ()> {
     math::print_vec();
 
     cli::run();
-    vdb::do_everything().await;
+    let vdb_pair = vdb::do_everything().await;
+    let vdb = vdb_reader::do_everything(vdb_pair);
+
 
     Ok(())
 }

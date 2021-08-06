@@ -3,30 +3,87 @@ use std::str::FromStr;
 use std::vec::Vec;
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::path::Path;
+// use std::path::Path;
 
 struct VDB {
 
     full_path: String,
     num_atoms: usize,
-    vdb_read: bool, // Determine whether the vdb has actually been read
-    atoms: Vec<Atom>
+    // vdb_read: bool, // Determine whether the vdb has actually been read
+    atoms: Vec<Atom>,
+    au: bool, // If true, only load the coordinates of  the AU
+    pdbid: String,
+
+}
+
+// This structure represents all of the information that can be extracted from a vdb webpage
+struct VDBInfo {
+
+    name: String,
+    pdbid: String,
+    family: String,
+    genus: String,
+    genome: String,
+    host: String,
+    t_number: u64,
+    n_atoms: u64,
+    resolution: f64,
+
+}
+
+pub fn do_everything(pdbid_pair: (String, String)) {
+
+    let vdb = VDB::new(pdbid_pair.0.as_str(), pdbid_pair.1.as_str());
+
+
+
 
 }
 
 impl VDB {
 
-    fn new(full_path: &str) -> Self {
+    fn new(pdbid: &str, full_path: &str) -> Self {
 
         let mut vdb = VDB {
             full_path: full_path.to_string(),
             num_atoms: 0,
-            vdb_read: false,
+            // vdb_read: false,
             atoms: Vec::<Atom>::new(),
+            au: false,
+            pdbid: pdbid.to_string()
         };
 
         vdb.load();
         vdb
+    }
+
+    fn new_au(pdbid: &str, full_path: &str) -> Self {
+
+        let mut vdb = VDB {
+            full_path: full_path.to_string(),
+            num_atoms: 0,
+            // vdb_read: false,
+            atoms: Vec::<Atom>::new(),
+            au: true,
+            pdbid: pdbid.to_string()
+        };
+
+        vdb.load();
+        vdb
+    }
+
+    // Gather info about a vdb virus using the viperdb frontend
+    fn query_info() {
+
+
+
+
+
+
+    }
+
+    fn query_backend() {
+
     }
 
 
@@ -94,7 +151,7 @@ mod tests {
     #[test]
     fn open_vdb() {
 
-        let my_vdb = super::VDB::new("/home/ejovo/Downloads/pdbs/2ms2/2ms2.vdb");
+        let my_vdb = super::VDB::new("2ms2", "/home/ejovo/Downloads/pdbs/2ms2/2ms2.vdb");
         println!("Num atoms: {}", my_vdb.num_atoms);
         println!("Max radius: {}", my_vdb.max_radius());
 
@@ -110,8 +167,10 @@ mod tests {
         let mut vdb = super::VDB {
             full_path: full_path.to_string(),
             num_atoms: 0,
-            vdb_read: false,
+            // vdb_read: false,
             atoms: Vec::<super::Atom>::new(),
+            au: true,
+            pdbid: "2ms2".to_string()
         };
 
         let lines = vdb.read_lines();
