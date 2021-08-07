@@ -1877,6 +1877,7 @@ dependencies = [
  "reqwest",
  "scraper",
  "serde",
+ "serde_json",
  "strum",
  "strum_macros",
  "tempdir",
