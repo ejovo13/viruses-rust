@@ -1,43 +1,21 @@
 // Read vdb files and slurp out information from them
-use std::str::FromStr;
 use std::vec::Vec;
 use std::fs::File;
 use std::io::{self, BufRead};
+use crate::virus::Virus;
+use serde_json::{Result, Value};
+
 // use std::path::Path;
 
-struct VDB {
+use crate::vdb::{VDB, Atom};
 
-    full_path: String,
-    num_atoms: usize,
-    // vdb_read: bool, // Determine whether the vdb has actually been read
-    atoms: Vec<Atom>,
-    au: bool, // If true, only load the coordinates of  the AU
-    pdbid: String,
-
-}
-
-// This structure represents all of the information that can be extracted from a vdb webpage
-struct VDBInfo {
-
-    name: String,
-    pdbid: String,
-    family: String,
-    genus: String,
-    genome: String,
-    host: String,
-    t_number: u64,
-    n_atoms: u64,
-    resolution: f64,
-
-}
-
-pub fn do_everything(pdbid_pair: (String, String)) {
+pub async fn do_everything(pdbid_pair: (String, String)) -> Virus {
 
     let vdb = VDB::new(pdbid_pair.0.as_str(), pdbid_pair.1.as_str());
+    // vdb.query_info().await;
+    let info = vdb.query_backend().await;
 
-
-
-
+    Virus::from(vdb, info)
 }
 
 impl VDB {
@@ -73,17 +51,70 @@ impl VDB {
     }
 
     // Gather info about a vdb virus using the viperdb frontend
-    fn query_info() {
+    async fn query_info(&self) {
 
-
-
-
-
-
+        let body = super::downloader::web::query_info(&self.pdbid).await.unwrap();
+        println!("Downloaded info: \n{}", body);
     }
 
-    fn query_backend() {
+    async fn query_backend(&self) -> super::VDBInfo {
 
+        let body = super::downloader::web::query_backend(&self.pdbid).await.unwrap();
+        println!("Downloaded info: \n{}", body);
+
+        let v = serde_json::from_str(&body).unwrap();
+
+        if let Value::Object(o) = v {
+            println!("Object succesfully saved");
+
+            let mut name = String::new();
+            let mut family = String::new();
+            let mut genus = String::new();
+            let mut genome = String::new();
+            let mut host = String::new();
+            let mut t_number: usize = 0;
+            let mut resolution: f64 = 0.;
+
+
+            if let Value::String(n) = o.get("name").unwrap_or(&Value::String("N/A".to_string())) {
+                name = String::from(n);
+            }
+            if let Value::String(fam) = o.get("family").unwrap_or(&Value::String("N/A".to_string())) {
+                family = String::from(fam);
+            }
+            if let Value::String(gen) = o.get("genus").unwrap_or(&Value::String("N/A".to_string())) {
+                genus = String::from(gen);
+            }
+            if let Value::String(genom) = o.get("genome").unwrap_or(&Value::String("N/A".to_string())) {
+                genome = String::from(genom);
+            }
+            if let Value::String(ho) = o.get("host").unwrap_or(&Value::String("N/A".to_string())) {
+                host = String::from(ho);
+            }
+            if let Value::Number(t) = o.get("tnumber").unwrap_or(&Value::String("N/A".to_string())) {
+                t_number = t.as_u64().unwrap() as usize;
+            }
+            if let Value::Number(res) = o.get("resolution").unwrap_or(&Value::String("N/A".to_string())) {
+                resolution = res.as_f64().unwrap();
+            }
+
+            println!("Name: {}", &name);
+            // println!("Name: {}", name);
+
+            super::VDBInfo {
+
+                name: name,
+                family: family,
+                genus: genus,
+                genome: genome,
+                host: host,
+                t_number: t_number,
+                resolution: resolution,
+            }
+
+        } else {
+            panic!("Json object not read properly");
+        }
     }
 
 
@@ -131,18 +162,6 @@ impl VDB {
         let vdb_file = File::open(&self.full_path).unwrap();
         return Ok(io::BufReader::new(vdb_file).lines());
     }
-
-    fn max_radius(&self) -> f64 {
-
-        let mut max_r = 0.;
-        for a in self.atoms.iter() {
-            if a.radius() > max_r {
-                max_r = a.radius();
-            }
-        }
-
-        max_r
-    }
 }
 
 #[cfg(test)]
@@ -153,7 +172,7 @@ mod tests {
 
         let my_vdb = super::VDB::new("2ms2", "/home/ejovo/Downloads/pdbs/2ms2/2ms2.vdb");
         println!("Num atoms: {}", my_vdb.num_atoms);
-        println!("Max radius: {}", my_vdb.max_radius());
+        // println!("Max radius: {}", my_vdb.max_radius());
 
 
 
@@ -197,123 +216,3 @@ mod tests {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-struct Atom {
-
-    serial_number: u64, // 7-11
-    atom_name: String, // 13-16
-    alternate_location_indicator: char, // 17
-    residue_name: String,
-    chain_identifier: char,
-    residue_sequence_number: u64,
-    insertion_code: u64,
-    x: f64,
-    y: f64,
-    z: f64,
-    occupancy: String,
-    temperature_factor: String,
-    // element_symbol: String,
-}
-
-impl Atom {
-
-    fn new(serial_number: u64, atom_name: String, alternate_location_indicator: char,
-            residue_name: String, chain_identifier: char, residue_sequence_number: u64,
-            insertion_code: u64, x: f64, y: f64, z: f64, occupancy: String, temperature_factor: String) -> Self {
-            //element_symbol: String) -> Self {
-
-        Atom {
-
-            serial_number,
-            atom_name,
-            alternate_location_indicator,
-            residue_name,
-            chain_identifier,
-            residue_sequence_number,
-            insertion_code,
-            x,
-            y,
-            z,
-            occupancy,
-            temperature_factor,
-            // element_symbol,
-
-        }
-    }
-
-    fn x(&self) -> f64 {
-        return self.x;
-    }
-
-    fn y(&self) -> f64 {
-        return self.y;
-    }
-
-    fn z(&self) -> f64 {
-        return self.z;
-    }
-
-
-    fn from_vdb_line(line: String) -> Option<Atom> {
-
-        let header = &line[0..7];
-
-        // println!("entered vdb_line");
-        // println!("\n Header recorded ad: {}", header);
-
-        if !header.contains("ATOM") {
-            return None;
-        }
-
-        let serial_number: u64 = (&line[6..11]).parse::<u64>().unwrap_or(9999999);
-        // println!("serial_number:   {}", serial_number);
-        let atom_name: String = (&line[12..16]).to_string();
-        // println!("atom_name:   {}", atom_name);
-        let alternate_location_indicator: char = line.chars().nth(16).unwrap_or(' ');
-        // println!("alternate_location_indicator:   {}", alternate_location_indicator);
-        let residue_name: String = (&line[17..20]).to_string();
-        // println!("residue_name:   {}", residue_name);
-        let chain_identifier: char = line.chars().nth(21).unwrap_or('z');
-        // println!("chain_identifier:   {}", chain_identifier);
-        let residue_sequence_number: u64 = (&line[22..26]).parse::<u64>().unwrap_or(0);
-        // println!("res seq num:   {}", residue_sequence_number);
-        let insertion_code: u64 = (&line[26..27]).parse::<u64>().unwrap_or(0);
-        // println!("insertion code:   {}", insertion_code);
-        // println!("X slice is converting: {}", &line[30..38]);
-        let x: f64 = f64::from_str(&line[30..38].trim()).expect("Something broke at x");
-        // println!("x:   {}", x);
-        let y: f64 = (&line[38..46].trim()).parse::<f64>().unwrap();
-        // println!("y:   {}", y);
-        let z: f64 = (&line[46..54].trim()).parse::<f64>().unwrap();
-        // println!("z:   {}", z);
-        let occupancy: String = (&line[54..60]).to_string();
-        // println!("occ:   {}", occupancy);
-        let temperature_factor: String = (&line[60..66]).to_string();
-        // println!("temp:   {}", temperature_factor);
-        // The element_symbol is out of bounds for most vdbs i guess
-        // let element_symbol: String = (&line[76..78]).to_string();
-        // println!("elem:   {}", element_symbol);
-
-        Some(Atom::new(serial_number, atom_name, alternate_location_indicator, residue_name, chain_identifier, residue_sequence_number,
-            insertion_code, x, y, z, occupancy, temperature_factor)) //element_symbol))
-
-    }
-
-    fn radius(&self) -> f64 {
-
-        f64::sqrt(self.x() * self.x() + self.y() + self.y() + self.z() * self.z())
-    }
-
-
-}
