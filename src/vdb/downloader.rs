@@ -6,10 +6,11 @@ pub async fn do_everything() -> (String, String) {
 
     // Get a valid pdbid
     let pdbid = get::valid_pdbid().await;
-    let pdbid_full_path = match web::download(&pdbid).await {
-        Ok(path) => path,
-        Err(e) => println!("Error: {}", e),
-    };
+    // let pdbid_full_path = match web::download(&pdbid).await {
+    //     Ok(path) => path,
+    //     Err(e) => e.to_string(),
+    // };
+    let pdbid_full_path = web::download(&pdbid).await.unwrap();
 
     (pdbid, pdbid_full_path)
 }
@@ -145,7 +146,7 @@ mod validate {
 
 }
 
-mod web {
+pub mod web {
 // A module to access the web to download pdbs.
 
     use std::fmt;
@@ -273,6 +274,71 @@ mod web {
 
 
         Ok(decompressed_vdb_str)
+
+    }
+
+    // Find out what information is available on the viper database and then return a "VDBInfo structure"
+    pub async fn query_info(pdbid: &str) -> Result<String> {
+
+        println!("Entering query_info");
+
+        let url = format!("http://viperdb.scripps.edu/Info_Page.php?VDB={}", pdbid);
+
+        println!("url: {}", url);
+        let body = reqwest::get(url)
+            .await.unwrap();
+
+        println!("Got body");
+            // .text()
+
+        let body = body.text().await.unwrap();
+            // .await?;
+
+        Ok(body)
+    }
+
+    pub async fn query_backend(pdbid: &str) -> Result<String> {
+
+        // First make a vector of websites that I have to hit
+
+        let mut urls = Vec::<String>::new();
+
+        urls.push(format!("http://viperdb.scripps.edu/services/biodata.php?serviceName=biodata_values&VDB={}", pdbid));
+        urls.push(format!("http://viperdb.scripps.edu/services/biodata.php?serviceName=layers&VDB={}", pdbid));
+        urls.push(format!("http://viperdb.scripps.edu/services/biodata.php?serviceName=numSubunits&VDB={}", pdbid));
+
+        let body1 = reqwest::get(&urls[0]).await?.text().await?;
+        let body1 = body1[..body1.len() - 1].to_string();
+
+        let body2 = reqwest::get(&urls[1]).await?.text().await?;
+        let body2 = body2[2..body2.len() - 1].to_string();
+
+        // let body3 = reqwest::get(&urls[2]).await?.text().await?;
+
+        // let result = format!("{},\n{},\n{}", body1, body2, body3);
+        let result = format!("{},{}", body1, body2);
+
+        Ok(result)
+
+    }
+
+    #[cfg(test)]
+    mod tests {
+
+        use futures::executor;
+
+
+        #[tokio::test]
+        async fn query_2ms2() {
+
+            println!("Entering query_2ms2");
+
+            let text = executor::block_on(super::query_info("2ms2")).unwrap();
+
+            println!("Text:\n {}", text);
+
+
+        }
 
     }
 }
