@@ -4,6 +4,7 @@ mod cli;
 mod math;
 mod mol;
 mod vdb;
+mod virus;
 // use error_chain::error_chain;
 
 
@@ -15,8 +16,10 @@ async fn main() -> Result<(), ()> {
     math::print_vec();
 
     cli::run();
-    let vdb_pair = vdb::downloader::do_everything().await;
-    let vdb = vdb::reader::do_everything(vdb_pair);
+    let virus = vdb::reader::do_everything(vdb::downloader::do_everything().await).await;
+
+    println!("Virus downloaded and loaded:");
+    println!("{}", virus);
 
     Ok(())
 }
