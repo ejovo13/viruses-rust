@@ -2,6 +2,9 @@ pub mod downloader;
 pub mod reader;
 
 use std::str::FromStr;
+use crate::math;
+
+type vec3<T> = [T; 3];
 
 pub struct VDB {
 
@@ -80,6 +83,11 @@ impl Atom {
 
     fn z(&self) -> f64 {
         return self.z;
+    }
+
+    fn coords(&self) -> vec3::<f64> {
+
+        [self.x, self.y, self.z]
     }
 
 

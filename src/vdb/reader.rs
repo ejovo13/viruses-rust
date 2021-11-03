@@ -3,7 +3,7 @@ use std::vec::Vec;
 use std::fs::File;
 use std::io::{self, BufRead};
 use crate::virus::Virus;
-use serde_json::{Result, Value};
+use serde_json::{Value};//, Value};
 
 // use std::path::Path;
 
@@ -51,21 +51,21 @@ impl VDB {
     }
 
     // Gather info about a vdb virus using the viperdb frontend
-    async fn query_info(&self) {
+    // Deprecated
+    // async fn query_info(&self) {
 
-        let body = super::downloader::web::query_info(&self.pdbid).await.unwrap();
-        println!("Downloaded info: \n{}", body);
-    }
+    //     let body = super::downloader::web::query_info(&self.pdbid).await.unwrap();
+    //     println!("Downloaded info: \n{}", body);
+    // }
 
     async fn query_backend(&self) -> super::VDBInfo {
 
         let body = super::downloader::web::query_backend(&self.pdbid).await.unwrap();
-        println!("Downloaded info: \n{}", body);
+        // println!("Downloaded info: \n{}", body);
 
         let v = serde_json::from_str(&body).unwrap();
 
         if let Value::Object(o) = v {
-            println!("Object succesfully saved");
 
             let mut name = String::new();
             let mut family = String::new();
@@ -98,8 +98,8 @@ impl VDB {
                 resolution = res.as_f64().unwrap();
             }
 
-            println!("Name: {}", &name);
-            // println!("Name: {}", name);
+            println!("--- Information succesfully extracted");
+
 
             super::VDBInfo {
 
@@ -111,6 +111,7 @@ impl VDB {
                 t_number: t_number,
                 resolution: resolution,
             }
+
 
         } else {
             panic!("Json object not read properly");
@@ -126,7 +127,7 @@ impl VDB {
     // Interpret the lines of a vdb file and store the data in self.atoms
     //
     //@param sel
-    fn load(&mut self) -> isize {
+    fn load(&mut self) {
 
         if let Ok(lines) = self.read_lines() {
 
@@ -149,10 +150,6 @@ impl VDB {
 
             self.atoms = atoms;
             self.num_atoms = self.atoms.iter().count();
-
-            count
-        } else {
-            0
         }
     }
 

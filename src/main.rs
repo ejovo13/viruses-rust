@@ -13,12 +13,12 @@ mod virus;
 #[tokio::main]
 async fn main() -> Result<(), ()> {
 
-    math::print_vec();
+    // math::print_vec();
 
     cli::run();
     let virus = vdb::reader::do_everything(vdb::downloader::do_everything().await).await;
 
-    println!("Virus downloaded and loaded:");
+    println!("--- Virus downloaded and loaded:\n");
     println!("{}", virus);
 
     Ok(())

@@ -277,25 +277,25 @@ pub mod web {
 
     }
 
-    // Find out what information is available on the viper database and then return a "VDBInfo structure"
-    pub async fn query_info(pdbid: &str) -> Result<String> {
+    // // Find out what information is available on the viper database and then return a "VDBInfo structure"
+    // pub async fn query_info(pdbid: &str) -> Result<String> {
 
-        println!("Entering query_info");
+    //     println!("Entering query_info");
 
-        let url = format!("http://viperdb.scripps.edu/Info_Page.php?VDB={}", pdbid);
+    //     let url = format!("http://viperdb.scripps.edu/Info_Page.php?VDB={}", pdbid);
 
-        println!("url: {}", url);
-        let body = reqwest::get(url)
-            .await.unwrap();
+    //     println!("url: {}", url);
+    //     let body = reqwest::get(url)
+    //         .await.unwrap();
 
-        println!("Got body");
-            // .text()
+    //     println!("Got body");
+    //         // .text()
 
-        let body = body.text().await.unwrap();
-            // .await?;
+    //     let body = body.text().await.unwrap();
+    //         // .await?;
 
-        Ok(body)
-    }
+    //     Ok(body)
+    // }
 
     pub async fn query_backend(pdbid: &str) -> Result<String> {
 
@@ -306,6 +306,8 @@ pub mod web {
         urls.push(format!("http://viperdb.scripps.edu/services/biodata.php?serviceName=biodata_values&VDB={}", pdbid));
         urls.push(format!("http://viperdb.scripps.edu/services/biodata.php?serviceName=layers&VDB={}", pdbid));
         urls.push(format!("http://viperdb.scripps.edu/services/biodata.php?serviceName=numSubunits&VDB={}", pdbid));
+
+        println!("--- Querying virus information");
 
         let body1 = reqwest::get(&urls[0]).await?.text().await?;
         let body1 = body1[..body1.len() - 1].to_string();
@@ -325,20 +327,20 @@ pub mod web {
     #[cfg(test)]
     mod tests {
 
-        use futures::executor;
+        // use futures::executor;
 
 
-        #[tokio::test]
-        async fn query_2ms2() {
+        // #[tokio::test]
+        // async fn query_2ms2() {
 
-            println!("Entering query_2ms2");
+        //     println!("Entering query_2ms2");
 
-            let text = executor::block_on(super::query_info("2ms2")).unwrap();
+        //     let text = executor::block_on(super::query_info("2ms2")).unwrap();
 
-            println!("Text:\n {}", text);
+        //     println!("Text:\n {}", text);
 
 
-        }
+        // }
 
     }
 }
