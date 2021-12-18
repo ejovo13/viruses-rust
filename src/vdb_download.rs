@@ -2,13 +2,19 @@
 
 // This module contains all the functionality to download vdbs based on user input
 
-pub async fn do_everything() {
+// Returns (download_path, valid_pdbid)
+pub async fn do_everything() -> (std::string::String, std::string::String) {
 
     // Get a valid pdbid
     let pdbid = get::valid_pdbid().await;
-    match web::download(&pdbid).await {
-        Ok(_) => {}
-        Err(e) => println!("Error: {}", e),
+    // match web::download(&pdbid).await {
+    //     Ok(_) => {}
+    //     Err(e) => println!("Error: {}", e),
+    // }
+    if let Ok(path) = web::download(&pdbid).await {
+        (path, pdbid)
+    } else {
+        (String::from("error"), String::from("error")) // this is fucking horrible error handling
     }
 }
 
@@ -233,7 +239,7 @@ mod web {
 
     }
 
-    pub async fn download(pdbid: &String) -> Result<()> {
+    pub async fn download(pdbid: &String) -> Result<String> {
 
         println!("--- Staring {} download", pdbid);
 
@@ -270,7 +276,7 @@ mod web {
         // Delete the compressed file version
 
 
-        Ok(())
+        Ok(decompressed_vdb_str)
 
     }
 }

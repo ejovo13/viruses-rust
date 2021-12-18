@@ -18,7 +18,16 @@ async fn main() -> Result<(), ()> {
     math::print_vec();
 
     cli::run();
-    vdb::do_everything().await;
+    let pdbid_tuplet = vdb::do_everything().await;
+
+    let mut vdb = vdb_reader::VDB::new(&pdbid_tuplet.0);
+    vdb.load();
+    println!("{}", vdb);
+
+    // for a in vdb.atoms.iter() {
+
+    // }
+
 
     Ok(())
 }

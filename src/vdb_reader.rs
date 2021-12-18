@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-struct VDB {
+pub struct VDB {
 
     full_path: String,
     num_atoms: usize,
@@ -14,9 +14,20 @@ struct VDB {
 
 }
 
+impl std::fmt::Display for VDB {
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "VDB full path: {}", self.full_path);
+        for atom in self.atoms.iter() {
+            println!("{}", atom);
+        }
+        write!(f, "End")
+    }
+}
+
 impl VDB {
 
-    fn new(full_path: &str) -> Self {
+    pub fn new(full_path: &str) -> Self {
 
         let mut vdb = VDB {
             full_path: full_path.to_string(),
@@ -38,7 +49,7 @@ impl VDB {
     // Interpret the lines of a vdb file and store the data in self.atoms
     //
     //@param sel
-    fn load(&mut self) -> isize {
+    pub fn load(&mut self) -> isize {
 
         if let Ok(lines) = self.read_lines() {
 
@@ -138,18 +149,6 @@ mod tests {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 struct Atom {
 
     serial_number: u64, // 7-11
@@ -165,6 +164,14 @@ struct Atom {
     occupancy: String,
     temperature_factor: String,
     // element_symbol: String,
+}
+
+
+impl std::fmt::Display for Atom {
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Name: {} ({}, {}, {})", self.atom_name, self.x, self.y, self.z)
+    }
 }
 
 impl Atom {
@@ -192,6 +199,7 @@ impl Atom {
 
         }
     }
+
 
     fn x(&self) -> f64 {
         return self.x;
